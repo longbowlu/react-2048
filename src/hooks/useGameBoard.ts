@@ -19,6 +19,8 @@ import { Vector } from '../utils/types';
 import { GameStatus } from './useGameState';
 import useLazyRef from './useLazyRef';
 
+import { JsonRpcProvider } from '@mysten/sui.js';
+
 export interface Location {
   r: number;
   c: number;
@@ -45,6 +47,7 @@ export type GameBoardParams = {
 };
 
 const createNewTile = (r: number, c: number): Tile => {
+  console.log("new tile");
   const index = nextTileIndex();
   const id = getId(index);
   return {
@@ -122,6 +125,14 @@ const canGameContinue = (grid: Cell[][], tiles: Tile[]) => {
   return false;
 };
 
+async function wait() {
+  const provider = new JsonRpcProvider('https://gateway.devnet.sui.io:443');
+  const objects = await provider.getObjectsOwnedByObject(
+    '0xbff6ccc8707aa517b4f1b95750a2a8c666012df3'
+  );
+  return objects;
+}
+
 const mergeAndCreateNewTiles = (grid: Cell[][]) => {
   const tiles: Tile[] = [];
   let score = 0;
@@ -146,6 +157,8 @@ const mergeAndCreateNewTiles = (grid: Cell[][]) => {
 
         if (canMerge) {
           score += newValue;
+          console.log("got score");
+          wait().then(result => console.log("@@@@@@@@@@@@@@", result));
         }
 
         return mergedTile;
@@ -178,7 +191,7 @@ const moveInDirection = (grid: Cell[][], dir: Vector) => {
   const totalCols = newGrid[0].length;
   const tiles: Tile[] = [];
   const moveStack: number[] = [];
-
+  console.log("Gaming Console");
   const traversal = createTraversalMap(totalRows, totalCols, dir);
   traversal.rows.forEach((row) => {
     traversal.cols.forEach((col) => {

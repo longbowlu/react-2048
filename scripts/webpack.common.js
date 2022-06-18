@@ -3,6 +3,8 @@ const HtmlWebpackPlugin = require('html-webpack-plugin');
 const FaviconsWebpackPlugin = require('favicons-webpack-plugin');
 const { author, description } = require('../package.json');
 
+const Dotenv = require('dotenv-webpack');
+
 module.exports = {
   entry: path.resolve(__dirname, '../src/index.tsx'),
   output: {
@@ -22,6 +24,7 @@ module.exports = {
     extensions: ['.ts', '.tsx', '.js'],
   },
   plugins: [
+    new Dotenv(),
     new HtmlWebpackPlugin({
       template: path.resolve(__dirname, '../public/index.html'),
     }),

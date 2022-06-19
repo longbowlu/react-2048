@@ -14,7 +14,7 @@ import {
   shuffle,
   create2DArray,
 } from '../utils/common';
-import useCallMove from './useCallMove';
+// import useCallMove from './useCallMove';
 import { DIRECTION_MAP } from '../utils/constants';
 import { Vector } from '../utils/types';
 import { GameStatus } from './useGameState';
@@ -141,7 +141,7 @@ const canGameContinue = (grid: Cell[][], tiles: Tile[]) => {
 // }
 
 
-const mergeAndCreateNewTiles = (grid: Cell[][], signer: RawSigner, recordOnChain, incrementTotalTxnCount) => {
+const mergeAndCreateNewTiles = (grid: Cell[][], signer: RawSigner, recordOnChain) => {
 // const mergeAndCreateNewTiles = (grid: Cell[][], signer: RawSigner, totalTxn, recordOnChain, incrementTotalTxnCount) => {
   const tiles: Tile[] = [];
   let score = 0;

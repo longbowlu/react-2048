@@ -1,7 +1,7 @@
 import React, { FC, useCallback, useEffect } from 'react';
 import { ThemeProvider } from 'styled-components';
 import Box from '../components/Box';
-import Control from '../components/Control/Control';
+// import Control from '../components/Control/Control';
 import GameBoard from '../components/GameBoard';
 import ScoreBoard from '../components/ScoreBoard';
 import SuiBoard from '../components/Sui';
@@ -95,9 +95,9 @@ const App: FC = () => {
     incrementTotalTxnCount,
   });
 
-  const onResetGame = useCallback(() => {
-    setGameStatus('restart');
-  }, [setGameStatus]);
+  // const onResetGame = useCallback(() => {
+  //   setGameStatus('restart');
+  // }, [setGameStatus]);
 
   const onCloseNotification = useCallback(
     (currentStatus: GameStatus) => {

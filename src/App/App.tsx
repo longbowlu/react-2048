@@ -4,16 +4,21 @@ import Box from '../components/Box';
 import Control from '../components/Control/Control';
 import GameBoard from '../components/GameBoard';
 import ScoreBoard from '../components/ScoreBoard';
+import SuiBoard from '../components/Sui';
 import Switch from '../components/Switch';
 import Text from '../components/Text';
 import useGameBoard from '../hooks/useGameBoard';
 import useGameScore from '../hooks/useGameScore';
 import useGameState, { GameStatus } from '../hooks/useGameState';
 import useScaleControl from '../hooks/useScaleControl';
+import useSui from '../hooks/useSui';
+import useCallMove from '../hooks/useCallMove';
+// import load{} from '../hooks/useSui';
 import { GRID_SIZE, MIN_SCALE, SPACING } from '../utils/constants';
 import useLocalStorage from '../hooks/useLocalStorage';
 import { ThemeName } from '../themes/types';
 import useTheme from '../hooks/useTheme';
+import { useAsync } from "react-async"
 
 export type Configuration = {
   theme: ThemeName;
@@ -22,7 +27,23 @@ export type Configuration = {
   cols: number;
 };
 
-const APP_NAME = 'react-2048';
+const APP_NAME = 'sui-2048';
+
+const getAddress = async ({ signer }) => {
+  const address = await signer.getAddress();
+  // const foo = {"recipient": address};
+  // const response = await fetch("http://faucet.devnet.sui.io/gas", {
+  //   method: 'POST',
+  //   body: JSON.stringify({"FixedAmountRequest": foo}),
+  //   headers: {
+  //     'Content-Type': 'application/json',
+  //     'Access-Control-Allow-Origin': 'http://localhost:3000',
+  //   } });
+  
+  // if (response.ok) { console.log("requested tokens,"); }
+  
+  return address;
+}
 
 const App: FC = () => {
   const [{ status: gameStatus, pause }, setGameStatus] = useGameState({
@@ -44,7 +65,22 @@ const App: FC = () => {
   const [rows, setRows] = useScaleControl(config.rows);
   const [cols, setCols] = useScaleControl(config.cols);
 
-  const { total, best, addScore, setTotal } = useGameScore(config.bestScore);
+  const { total, best, totalTxn, addScore, setTotal, incrementTotalTxnCount} = useGameScore(config.bestScore);
+  const signer = useSui();
+  // const {totalTxn, recordOnChain, incrementTotalTxnCount} = useCallMove(signer);
+  const {recordOnChain } = useCallMove(signer);
+  // const { address, signer } = useSui();
+  // const baz = useAsync(useSui);
+  const state = useAsync({ promiseFn: getAddress, signer: signer });
+  // const baz = useAsync({ promiseFn: get_address(signer)});
+  // const baz = useAsync(get_address);
+  // const state = useAsync(async () => {
+  //   return await signer.getAddress();
+  // }, [signer]);
+  // const objects = useAsync(foo);
+  // console.log("@@@@@@ addr:", state);
+  const address = state.isPending ? "loading" : "0x"+state.data;
+  // const signer = useSui();
 
   const { tiles, onMove, onMovePending } = useGameBoard({
     rows,
@@ -53,6 +89,10 @@ const App: FC = () => {
     gameStatus,
     setGameStatus,
     addScore,
+    signer,
+    // totalTxn,
+    recordOnChain,
+    incrementTotalTxnCount,
   });
 
   const onResetGame = useCallback(() => {
@@ -112,7 +152,7 @@ const App: FC = () => {
               <ScoreBoard total={best} title="best" />
             </Box>
           </Box>
-          <Box marginBlockStart="s2" marginBlockEnd="s6" inlineSize="100%">
+          {/* <Box marginBlockStart="s2" marginBlockEnd="s6" inlineSize="100%">
             <Control
               rows={rows}
               cols={cols}
@@ -120,7 +160,7 @@ const App: FC = () => {
               onChangeRow={setRows}
               onChangeCol={setCols}
             />
-          </Box>
+          </Box> */}
           <GameBoard
             tiles={tiles}
             boardSize={GRID_SIZE}
@@ -132,13 +172,16 @@ const App: FC = () => {
             onMovePending={onMovePending}
             onCloseNotification={onCloseNotification}
           />
-          <Box marginBlock="s4" justifyContent="center" flexDirection="column">
+          {/* <Box marginBlock="s4" justifyContent="center" flexDirection="column">
             <Text fontSize={16} as="p" color="primary">
               ✨ Join tiles with the same value to get 2048
             </Text>
             <Text fontSize={16} as="p" color="primary">
               🕹️ Play with arrow keys or swipe
             </Text>
+          </Box> */}
+          <Box marginBlock="s4" justifyContent="center">
+            <SuiBoard total={totalTxn + " Txns"} title={address} />
           </Box>
         </Box>
       </Box>

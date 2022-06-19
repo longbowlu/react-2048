@@ -14,12 +14,13 @@ import {
   shuffle,
   create2DArray,
 } from '../utils/common';
+import useCallMove from './useCallMove';
 import { DIRECTION_MAP } from '../utils/constants';
 import { Vector } from '../utils/types';
 import { GameStatus } from './useGameState';
 import useLazyRef from './useLazyRef';
 
-import { JsonRpcProvider } from '@mysten/sui.js';
+import { RawSigner } from '@mysten/sui.js';
 
 export interface Location {
   r: number;
@@ -44,12 +45,17 @@ export type GameBoardParams = {
   gameStatus: GameStatus;
   setGameStatus: (nextStatus: GameStatus) => void;
   addScore: (score: number) => void;
+  signer: RawSigner;
+  recordOnChain;
 };
 
 const createNewTile = (r: number, c: number): Tile => {
   console.log("new tile");
   const index = nextTileIndex();
   const id = getId(index);
+
+  // useCallMove(signer).then(result => console.log("@@@@@@@@@@@@@@ bar", result));
+
   return {
     index,
     id,
@@ -71,6 +77,7 @@ const createNewTilesInEmptyCells = (
   emptyCells: Location[],
   tilesNumber: number,
 ) => {
+  console.log("createNewTilesInEmptyCells");
   const actualTilesNumber =
     emptyCells.length < tilesNumber ? emptyCells.length : tilesNumber;
 
@@ -125,17 +132,20 @@ const canGameContinue = (grid: Cell[][], tiles: Tile[]) => {
   return false;
 };
 
-async function wait() {
-  const provider = new JsonRpcProvider('https://gateway.devnet.sui.io:443');
-  const objects = await provider.getObjectsOwnedByObject(
-    '0xbff6ccc8707aa517b4f1b95750a2a8c666012df3'
-  );
-  return objects;
-}
+// async function foo() {
+//   const provider = new JsonRpcProvider('https://fullnode.devnet.sui.io:443');
+//   const objects = await provider.getObject(
+//     '0xef78dd48f3692f85f88ad36a4e25eaa15ac97ec4'
+//   );
+//   return objects;
+// }
 
-const mergeAndCreateNewTiles = (grid: Cell[][]) => {
+
+const mergeAndCreateNewTiles = (grid: Cell[][], signer: RawSigner, recordOnChain, incrementTotalTxnCount) => {
+// const mergeAndCreateNewTiles = (grid: Cell[][], signer: RawSigner, totalTxn, recordOnChain, incrementTotalTxnCount) => {
   const tiles: Tile[] = [];
   let score = 0;
+  let merged = 0;
   const rows = grid.length;
   const cols = grid[0].length;
 
@@ -156,9 +166,12 @@ const mergeAndCreateNewTiles = (grid: Cell[][]) => {
         tiles.push(mergedTile);
 
         if (canMerge) {
+          merged += 1;
           score += newValue;
           console.log("got score");
-          wait().then(result => console.log("@@@@@@@@@@@@@@", result));
+          // foo().then(result => console.log("@@@@@@@@@@@@@@ foo", result));
+          recordOnChain(signer).then(result => console.log("@@@@@@@@@@@@@@ bar", result));
+          // incrementTotalTxnCount(totalTxn+1);
         }
 
         return mergedTile;
@@ -169,6 +182,7 @@ const mergeAndCreateNewTiles = (grid: Cell[][]) => {
   );
 
   const emptyCells = getEmptyCellsLocation(newGrid);
+  console.log("@@@@@@@@@@@@ hi prepare to add empty tile");
   const newTiles = createNewTilesInEmptyCells(
     emptyCells,
     Math.ceil((rows * cols) / 16),
@@ -182,6 +196,7 @@ const mergeAndCreateNewTiles = (grid: Cell[][]) => {
     grid: newGrid,
     tiles,
     score,
+    merged,
   };
 };
 
@@ -191,7 +206,7 @@ const moveInDirection = (grid: Cell[][], dir: Vector) => {
   const totalCols = newGrid[0].length;
   const tiles: Tile[] = [];
   const moveStack: number[] = [];
-  console.log("Gaming Console");
+  // console.log("Gaming Console");
   const traversal = createTraversalMap(totalRows, totalCols, dir);
   traversal.rows.forEach((row) => {
     traversal.cols.forEach((col) => {
@@ -280,6 +295,10 @@ const useGameBoard = ({
   gameStatus,
   setGameStatus,
   addScore,
+  signer,
+  // totalTxn,
+  recordOnChain,
+  incrementTotalTxnCount,
 }: GameBoardParams) => {
   const gridRef = useLazyRef(() => create2DArray<Cell>(rows, cols));
   const [tiles, setTiles] = useState<Tile[]>([]);
@@ -300,6 +319,7 @@ const useGameBoard = ({
 
         // Don't trigger upates if no movments
         if (moveStack.length > 0) {
+          console.log("@@@@@@@@@@@ ??? ", moveStack.length);
           setMoving(true);
           // Sort by index to persist iteration order of tiles array
           // so that transform animation won't be interrupted by rerending
@@ -316,19 +336,25 @@ const useGameBoard = ({
     if (pendingStackRef.current.length === 0) setMoving(false);
   }, []);
 
-  useLayoutEffect(() => {
+  // useLayoutEffect(() => {
+  useEffect(() => {
     if (!moving) {
+      console.log("useLayoutEffect, !moving");
       const {
         tiles: newTiles,
         score,
         grid,
-      } = mergeAndCreateNewTiles(gridRef.current);
+        merged,
+      // } = mergeAndCreateNewTiles(gridRef.current, signer, totalTxn, recordOnChain, incrementTotalTxnCount);
+      } = mergeAndCreateNewTiles(gridRef.current, signer, recordOnChain, incrementTotalTxnCount);
       gridRef.current = grid;
 
       addScore(score);
+      incrementTotalTxnCount(merged);
       setTiles(sortTiles(newTiles));
     }
-  }, [moving, addScore, gridRef]);
+  // }, [moving, addScore, gridRef, signer, totalTxn, recordOnChain, incrementTotalTxnCount]);
+  }, [moving, addScore, gridRef, signer, recordOnChain, incrementTotalTxnCount]);
 
   useLayoutEffect(() => {
     pauseRef.current = pause;

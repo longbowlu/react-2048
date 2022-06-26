@@ -1,7 +1,7 @@
 {
   "name": "React 2048",
   "short_name": "2048",
-  "description": "A React clone of 2048 game",
+  "description": "A 2048 game built on top of Sui Blockchain",
   "dir": "auto",
   "lang": "en-US",
   "display": "fullscreen",

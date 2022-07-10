@@ -18,6 +18,7 @@ const StyledButton = styled.button<StyledButtonProps>`
   border: none;
   padding: 8px 16px;
   line-height: 1.75;
+  width: 22.4rem;
   margin: 0;
   white-space: nowrap;
   ${({ mini }) => mini && getMiniProps};

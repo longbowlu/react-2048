@@ -19,7 +19,9 @@ export interface GameBoardProps {
   spacing: number;
   onMove: (dir: Vector) => void;
   onMovePending: () => void;
-  onCloseNotification: (currentStatus: GameStatus) => void;
+  // onCloseNotification: (currentStatus: GameStatus) => void;
+  gameOn: boolean;
+  txns: string[];
 }
 
 const GameBoard: FC<GameBoardProps> = ({
@@ -31,14 +33,15 @@ const GameBoard: FC<GameBoardProps> = ({
   spacing,
   onMove,
   onMovePending,
-  // onMergePending,
-  onCloseNotification,
+  // onCloseNotification,
+  gameOn,
+  txns,
 }) => {
   const [{ width: tileWidth, height: tileHeight }, setTileSize] = useState(() =>
     calcTileSize(boardSize, rows, cols, spacing),
   );
   const boardRef = useRef<HTMLDivElement>(null);
-  useArrowKeyPress(onMove);
+  useArrowKeyPress(onMove, gameOn);
   useSwipe(boardRef, onMove);
 
   useEffect(() => {
@@ -79,7 +82,8 @@ const GameBoard: FC<GameBoardProps> = ({
       {(gameStatus === 'win' || gameStatus === 'lost') && (
         <Notification
           win={gameStatus === 'win'}
-          onClose={() => onCloseNotification(gameStatus)}
+          txns={txns}
+          // onClose={() => onCloseNotification(gameStatus)}
         />
       )}
     </Box>

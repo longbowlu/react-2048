@@ -1,4 +1,4 @@
-import {
+import React, {
   useCallback,
   useEffect,
   useLayoutEffect,
@@ -18,6 +18,8 @@ import { DIRECTION_MAP } from '../utils/constants';
 import { Vector } from '../utils/types';
 import { GameStatus } from './useGameState';
 import useLazyRef from './useLazyRef';
+
+import { RawSigner } from '@mysten/sui.js';
 
 export interface Location {
   r: number;
@@ -42,11 +44,16 @@ export type GameBoardParams = {
   gameStatus: GameStatus;
   setGameStatus: (nextStatus: GameStatus) => void;
   addScore: (score: number) => void;
+  signer: RawSigner;
+  recordOnChain: (mergeInfo: number[]) => Promise<string[]>;
+  appendTxn: (digests: string[]) => void,
+  shouldGenerateSmashKeys: React.MutableRefObject<boolean>,
 };
 
 const createNewTile = (r: number, c: number): Tile => {
   const index = nextTileIndex();
   const id = getId(index);
+
   return {
     index,
     id,
@@ -122,11 +129,18 @@ const canGameContinue = (grid: Cell[][], tiles: Tile[]) => {
   return false;
 };
 
-const mergeAndCreateNewTiles = (grid: Cell[][]) => {
+const mergeAndCreateNewTiles = (
+  grid: Cell[][], 
+  recordOnChain: (mergeInfo: number[]) => Promise<string[]>, 
+  appendTxn: (digests: string[]) => void,
+  gameOn: boolean
+) => {
   const tiles: Tile[] = [];
   let score = 0;
   const rows = grid.length;
   const cols = grid[0].length;
+
+  const mergeInfo: number[] = [];
 
   const newGrid = grid.map((row) =>
     row.map((tile) => {
@@ -146,6 +160,7 @@ const mergeAndCreateNewTiles = (grid: Cell[][]) => {
 
         if (canMerge) {
           score += newValue;
+          mergeInfo.push(value);
         }
 
         return mergedTile;
@@ -154,6 +169,14 @@ const mergeAndCreateNewTiles = (grid: Cell[][]) => {
       return tile;
     }),
   );
+  if (gameOn) {
+    recordOnChain(mergeInfo).then(txnDigests => {
+      // Occasionally, when there's a sync gap between quorum driver
+      // and client in terms of gas managemnet, we may see duplicate
+      // transaction digests. We dedup here.
+      appendTxn([...new Set(txnDigests)]);
+    });
+  }
 
   const emptyCells = getEmptyCellsLocation(newGrid);
   const newTiles = createNewTilesInEmptyCells(
@@ -178,7 +201,6 @@ const moveInDirection = (grid: Cell[][], dir: Vector) => {
   const totalCols = newGrid[0].length;
   const tiles: Tile[] = [];
   const moveStack: number[] = [];
-
   const traversal = createTraversalMap(totalRows, totalCols, dir);
   traversal.rows.forEach((row) => {
     traversal.cols.forEach((col) => {
@@ -267,11 +289,16 @@ const useGameBoard = ({
   gameStatus,
   setGameStatus,
   addScore,
+  signer,
+  recordOnChain,
+  appendTxn,
+  shouldGenerateSmashKeys,
 }: GameBoardParams) => {
   const gridRef = useLazyRef(() => create2DArray<Cell>(rows, cols));
   const [tiles, setTiles] = useState<Tile[]>([]);
   const pendingStackRef = useRef<number[]>([]);
   const [moving, setMoving] = useState(false);
+  const [gameOn, setGameOn] = useState(false);
   const pauseRef = useRef(pause);
 
   const onMove = useCallback(
@@ -303,19 +330,18 @@ const useGameBoard = ({
     if (pendingStackRef.current.length === 0) setMoving(false);
   }, []);
 
-  useLayoutEffect(() => {
+  useEffect(() => {
     if (!moving) {
       const {
         tiles: newTiles,
         score,
         grid,
-      } = mergeAndCreateNewTiles(gridRef.current);
+      } = mergeAndCreateNewTiles(gridRef.current, recordOnChain, appendTxn, gameOn);
       gridRef.current = grid;
-
       addScore(score);
       setTiles(sortTiles(newTiles));
     }
-  }, [moving, addScore, gridRef]);
+  }, [moving, addScore, gridRef, signer, recordOnChain, appendTxn]);
 
   useLayoutEffect(() => {
     pauseRef.current = pause;
@@ -325,10 +351,13 @@ const useGameBoard = ({
     const { grid, tiles: newTiles } = resetGameBoard(rows, cols);
     gridRef.current = grid;
     setTiles(newTiles);
+    console.log("set Running!")
     setGameStatus('running');
-  }, [rows, cols, setGameStatus, gridRef]);
+  }, [rows, cols, setGameStatus, gridRef, shouldGenerateSmashKeys]);
 
   useEffect(() => {
+    // Note 'restart' is not relevant if "NewGame"
+    // functionality is disabled
     if (gameStatus === 'restart') {
       const r = gridRef.current.length;
       const c = gridRef.current[0].length;
@@ -338,16 +367,20 @@ const useGameBoard = ({
       setTiles(newTiles);
       setGameStatus('running');
     } else if (gameStatus === 'running' && isWin(tiles)) {
+      console.log("Set GameStatus to win");
       setGameStatus('win');
+      shouldGenerateSmashKeys.current = false;
     } else if (
       gameStatus !== 'lost' &&
       !canGameContinue(gridRef.current, tiles)
     ) {
+      console.log("Set GameStatus to lost");
       setGameStatus('lost');
+      shouldGenerateSmashKeys.current = false;
     }
-  }, [tiles, gameStatus, setGameStatus, gridRef]);
+  }, [tiles, gameStatus, setGameStatus, gridRef, shouldGenerateSmashKeys]);
 
-  return { tiles, onMove, onMovePending };
+  return { tiles, onMove, onMovePending, gameOn, setGameOn };
 };
 
 export default useGameBoard;

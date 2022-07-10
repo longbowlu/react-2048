@@ -27,7 +27,21 @@ export const clamp = (d: number, min: number, max: number) =>
   Math.max(Math.min(max, d), min);
 
 export const getTileFontSize = (w: number, h: number, v: number) => {
-  const factor = v >= 1024 ? 2.8 : 2;
+  let factor = 2.4;
+  switch (v) {
+    case 64:
+    case 128:
+    case 512:
+    case 2048:
+      factor = 3.6;
+      break;
+    case 256:
+      factor = 4.8;
+      break;
+    default:
+      factor = 2.4;
+      break;
+  }
   return Math.min(w, h) / factor;
 };
 

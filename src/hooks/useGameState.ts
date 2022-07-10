@@ -1,5 +1,7 @@
 import { useReducer } from 'react';
 
+// Note 'continue' and 'restart' is not relevant
+// when NewGame functionality is disabled
 export type GameStatus = 'win' | 'lost' | 'continue' | 'restart' | 'running';
 
 export type GameState = {

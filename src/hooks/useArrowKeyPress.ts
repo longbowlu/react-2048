@@ -7,7 +7,7 @@ const isArrowKey = (key: string): key is ArrowKeyType =>
 
 // Rather than returning the direction, we pass the direction to the given callback
 // so that keydown event won't make React rerender until the callback changes some states
-const useArrowKeyPress = (cb: (dir: Vector) => void) => {
+const useArrowKeyPress = (cb: (dir: Vector) => void, gameOn: boolean) => {
   const onKeyDown = useCallback(
     ({ key }: KeyboardEvent) => {
       if (isArrowKey(key)) {
@@ -18,11 +18,13 @@ const useArrowKeyPress = (cb: (dir: Vector) => void) => {
   );
 
   useEffect(() => {
-    window.addEventListener('keydown', onKeyDown);
+    if (gameOn) {
+      window.addEventListener('keydown', onKeyDown);
+    }
     return () => {
       window.removeEventListener('keydown', onKeyDown);
     };
-  }, [onKeyDown]);
+  }, [onKeyDown, gameOn]);
 };
 
 export default useArrowKeyPress;

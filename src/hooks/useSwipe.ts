@@ -41,6 +41,7 @@ const useSwipe = <T extends HTMLElement>(
   );
 
   useEffect(() => {
+    // FIXME mobile?
     const el = ref.current;
     if (isTouchDevice()) {
       el?.addEventListener('touchstart', onTouchStart);

@@ -1,19 +1,24 @@
-import React, { FC, useCallback, useEffect } from 'react';
+import React, { FC, useEffect } from 'react';
 import { ThemeProvider } from 'styled-components';
 import Box from '../components/Box';
-import Control from '../components/Control/Control';
+import Smash from '../components/Smash/Smash';
 import GameBoard from '../components/GameBoard';
 import ScoreBoard from '../components/ScoreBoard';
-import Switch from '../components/Switch';
+import IntroDialog from '../components/Intro';
 import Text from '../components/Text';
+import TxnTable from '../components/TxnTable';
 import useGameBoard from '../hooks/useGameBoard';
+import useSmash from '../hooks/useSmash';
+import useSmashGenerator from '../hooks/useSmashGenerator';
 import useGameScore from '../hooks/useGameScore';
-import useGameState, { GameStatus } from '../hooks/useGameState';
+import useGameState from '../hooks/useGameState';
 import useScaleControl from '../hooks/useScaleControl';
+import useSui, { getAddress } from '../hooks/useSui';
 import { GRID_SIZE, MIN_SCALE, SPACING } from '../utils/constants';
 import useLocalStorage from '../hooks/useLocalStorage';
 import { ThemeName } from '../themes/types';
 import useTheme from '../hooks/useTheme';
+import { useAsync } from "react-async"
 
 export type Configuration = {
   theme: ThemeName;
@@ -22,7 +27,7 @@ export type Configuration = {
   cols: number;
 };
 
-const APP_NAME = 'react-2048';
+const APP_NAME = 'sui-2048';
 
 const App: FC = () => {
   const [{ status: gameStatus, pause }, setGameStatus] = useGameState({
@@ -37,34 +42,33 @@ const App: FC = () => {
     cols: MIN_SCALE,
   });
 
-  const [{ name: themeName, value: themeValue }, setTheme] = useTheme(
+  const [{ name: themeName, value: themeValue }] = useTheme(
     config.theme,
   );
 
-  const [rows, setRows] = useScaleControl(config.rows);
-  const [cols, setCols] = useScaleControl(config.cols);
+  const [rows] = useScaleControl(config.rows);
+  const [cols] = useScaleControl(config.cols);
 
-  const { total, best, addScore, setTotal } = useGameScore(config.bestScore);
+  const { total, best, txns, addScore, setTotal, appendTxn } = useGameScore(config.bestScore);
+  const { signer, recordOnChain } = useSui();
 
-  const { tiles, onMove, onMovePending } = useGameBoard({
+  const state = useAsync({ promiseFn: getAddress, signer: signer });
+  const address = state.isPending ? "loading" : "0x"+state.data;
+
+  const { keys, consumeKeys, generateKeys, shouldGenerateSmashKeys } = useSmashGenerator();
+  const { tiles, onMove, onMovePending, gameOn, setGameOn } = useGameBoard({
     rows,
     cols,
     pause,
     gameStatus,
     setGameStatus,
     addScore,
+    signer,
+    recordOnChain,
+    appendTxn,
+    shouldGenerateSmashKeys,
   });
-
-  const onResetGame = useCallback(() => {
-    setGameStatus('restart');
-  }, [setGameStatus]);
-
-  const onCloseNotification = useCallback(
-    (currentStatus: GameStatus) => {
-      setGameStatus(currentStatus === 'win' ? 'continue' : 'restart');
-    },
-    [setGameStatus],
-  );
+  useSmash(onMove, gameOn, consumeKeys, keys);
 
   useEffect(() => {
     if (gameStatus === 'restart') setTotal(0);
@@ -76,6 +80,7 @@ const App: FC = () => {
 
   return (
     <ThemeProvider theme={themeValue}>
+      <IntroDialog signer={signer} setGameOn={setGameOn}></IntroDialog>
       <Box
         justifyContent="center"
         inlineSize="100%"
@@ -88,15 +93,6 @@ const App: FC = () => {
           flexDirection="column"
           inlineSize={`${GRID_SIZE}px`}
         >
-          <Box marginBlockStart="s6" inlineSize="100%" justifyContent="end">
-            <Switch
-              title="dark mode"
-              checked={themeName === 'dark'}
-              activeValue="dark"
-              inactiveValue="default"
-              onChange={setTheme}
-            />
-          </Box>
           <Box
             inlineSize="100%"
             justifyContent="space-between"
@@ -113,13 +109,7 @@ const App: FC = () => {
             </Box>
           </Box>
           <Box marginBlockStart="s2" marginBlockEnd="s6" inlineSize="100%">
-            <Control
-              rows={rows}
-              cols={cols}
-              onReset={onResetGame}
-              onChangeRow={setRows}
-              onChangeCol={setCols}
-            />
+            <Smash onClick={generateKeys} />
           </Box>
           <GameBoard
             tiles={tiles}
@@ -130,16 +120,25 @@ const App: FC = () => {
             gameStatus={gameStatus}
             onMove={onMove}
             onMovePending={onMovePending}
-            onCloseNotification={onCloseNotification}
+            // onCloseNotification={onCloseNotification}
+            gameOn={gameOn}
+            txns={txns}
           />
-          <Box marginBlock="s4" justifyContent="center" flexDirection="column">
+          {/* <Box marginBlock="s4" justifyContent="center" flexDirection="column">
             <Text fontSize={16} as="p" color="primary">
-              ✨ Join tiles with the same value to get 2048
+              💦 Join tiles to bring Sui into ocean.
             </Text>
             <Text fontSize={16} as="p" color="primary">
-              🕹️ Play with arrow keys or swipe
+              🌊 Each tile merge commits a transaction
             </Text>
+            <Text fontSize={16} as="p" color="primary">
+              🌊 and creates an NFT on Sui blockchain.
+            </Text>
+          </Box> */}
+          <Box marginBlock="s4" justifyContent="center">
+            <TxnTable address={address} rows={txns}/>
           </Box>
+          
         </Box>
       </Box>
     </ThemeProvider>

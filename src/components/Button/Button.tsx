@@ -6,7 +6,7 @@ export interface ButtonProps extends StyledButtonProps {
 }
 
 const Button = forwardRef<HTMLButtonElement, PropsWithChildren<ButtonProps>>(
-  ({ onClick, disable = false, ...rest }, ref) => (
+  ({ onClick, disable, ...rest }, ref) => (
     <StyledButton
       ref={ref}
       disable={disable}

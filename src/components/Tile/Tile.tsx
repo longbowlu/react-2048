@@ -1,6 +1,7 @@
 import React, { FC } from 'react';
 import StyledTile, { StyledTileProps } from './StyledTile';
 import StyledTileValue from './StyledTileValue';
+import {TILE_MAPPING} from '../../utils/constants'
 
 export interface TileProps extends StyledTileProps {
   isNew?: boolean;
@@ -15,12 +16,13 @@ const Tile: FC<TileProps> = ({
   height,
   isNew = false,
   isMerging = false,
-}) => (
-  <StyledTile value={value} x={x} y={y} width={width} height={height}>
+}) => {
+  const display = TILE_MAPPING.get(value) || value;
+  return <StyledTile value={value} x={x} y={y} width={width} height={height}>
     <StyledTileValue value={value} isNew={isNew} isMerging={isMerging}>
-      {value}
+      {display}
     </StyledTileValue>
-  </StyledTile>
-);
+  </StyledTile>;
+};
 
 export default Tile;
